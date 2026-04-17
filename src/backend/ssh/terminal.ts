@@ -1191,7 +1191,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
       key,
       keyPassword,
       keyType,
-      authType,
+      authType: authType || (password ? "password" : key ? "key" : "none"),
     };
     let portKnockSequence = hostConfig.portKnockSequence;
 
@@ -1207,7 +1207,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
             key: resolvedHost.key,
             keyPassword: resolvedHost.keyPassword,
             keyType: resolvedHost.keyType,
-            authType: resolvedHost.authType,
+            authType: resolvedHost.authType || (resolvedHost.password ? "password" : resolvedHost.key ? "key" : "none"),
           };
           if (resolvedHost.portKnockSequence) {
             portKnockSequence = resolvedHost.portKnockSequence as Array<{
@@ -1240,7 +1240,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
             key: resolvedHost.key,
             keyPassword: resolvedHost.keyPassword,
             keyType: resolvedHost.keyType,
-            authType: resolvedHost.authType,
+            authType: resolvedHost.authType || (resolvedHost.password ? "password" : resolvedHost.key ? "key" : "none"),
           };
           if (resolvedHost.portKnockSequence) {
             portKnockSequence = resolvedHost.portKnockSequence as Array<{
@@ -1258,6 +1258,11 @@ wss.on("connection", async (ws: WebSocket, req) => {
           error: error instanceof Error ? error.message : "Unknown error",
         });
       }
+    }
+
+    // Infer authType if it's still missing or set to "credential" (legacy fallback)
+    if (!resolvedCredentials.authType || resolvedCredentials.authType === "credential") {
+      resolvedCredentials.authType = resolvedCredentials.key ? "key" : resolvedCredentials.password ? "password" : "none";
     }
 
     sshConn.on("ready", () => {

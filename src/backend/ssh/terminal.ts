@@ -7,7 +7,7 @@ import { parse as parseUrl } from "url";
 import axios from "axios";
 import { getDb } from "../database/db/index.js";
 import { sshCredentials, hosts } from "../database/db/schema.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { sshLogger, authLogger } from "../utils/logger.js";
 import { SimpleDBOps } from "../utils/simple-db-ops.js";
 import { AuthManager } from "../utils/auth-manager.js";
@@ -1270,10 +1270,14 @@ wss.on("connection", async (ws: WebSocket, req) => {
 
       // Mark host as verified for background polling
       if (id) {
-        getDb().update(hosts)
-          .set({ verified: true })
-          .where(eq(hosts.id, id))
-          .run();
+        try {
+          getDb().update(hosts)
+            .set({ verified: true })
+            .where(eq(hosts.id, id))
+            .run();
+        } catch {
+          // Fallback just in case
+        }
       }
 
       sshLogger.success("SSH connection established", {

@@ -6,7 +6,7 @@ import { Client, type ConnectConfig } from "ssh2";
 import { SSH_ALGORITHMS } from "../utils/ssh-algorithms.js";
 import { getDb } from "../database/db/index.js";
 import { hosts, sshCredentials } from "../database/db/schema.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { statsLogger } from "../utils/logger.js";
 import { SimpleDBOps } from "../utils/simple-db-ops.js";
 import { AuthManager } from "../utils/auth-manager.js";
@@ -1287,7 +1287,7 @@ async function resolveHostCredentials(
             : []
           : [],
       pin: !!host.pin,
-      verified: !!host.verified,
+      verified: host.verified !== undefined ? !!host.verified : true,
       authType: host.authType,
       enableTerminal: !!host.enableTerminal,
       enableTunnel: !!host.enableTunnel,

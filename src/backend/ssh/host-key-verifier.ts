@@ -90,16 +90,16 @@ export class SSHHostKeyVerifier {
 
             if (!ws) {
               sshLogger.warn(
-                "No WebSocket available for host key verification prompt",
+                "Rejecting new host key - No WebSocket available for verification (background polling)",
                 {
-                  operation: "host_key_no_ws",
+                  operation: "host_key_no_ws_reject",
                   hostId,
                   ip,
                   port,
                   userId,
                 },
               );
-              verify(true);
+              verify(false);
               return;
             }
 

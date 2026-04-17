@@ -481,13 +481,16 @@ class AuthFailureTracker {
       existing.count++;
       existing.lastFailure = Date.now();
       existing.reason = reason;
-      if (permanent) existing.permanent = true;
+      // If we've hit max retries for AUTH, make it permanent to stop fail2ban triggers
+      if (permanent || (reason === "AUTH" && existing.count >= this.maxRetries)) {
+        existing.permanent = true;
+      }
     } else {
       this.failures.set(hostId, {
         count: 1,
         lastFailure: Date.now(),
         reason,
-        permanent,
+        permanent: permanent || (reason === "AUTH" && 1 >= this.maxRetries),
       });
     }
   }

@@ -7,8 +7,6 @@ import { AutoSSLSetup } from "./utils/auto-ssl-setup.js";
 import { AuthManager } from "./utils/auth-manager.js";
 import { DataCrypto } from "./utils/data-crypto.js";
 import { SystemCrypto } from "./utils/system-crypto.js";
-import { sql } from "drizzle-orm";
-import { getDb } from "./database/db/index.js";
 import {
   systemLogger,
   versionLogger,
@@ -113,17 +111,6 @@ import {
     systemLogger.success("Database initialized", {
       operation: "backend_init_db",
     });
-
-    // Manual migration: Add 'verified' column if it doesn't exist
-    try {
-      const db = getDb();
-      db.run(sql`ALTER TABLE hosts ADD COLUMN verified INTEGER DEFAULT 0`);
-      systemLogger.info("Database migration: added 'verified' column to hosts table", {
-        operation: "db_migration_verified_column",
-      });
-    } catch {
-      // Column probably already exists, which is fine
-    }
 
     const authManager = AuthManager.getInstance();
     await authManager.initialize();

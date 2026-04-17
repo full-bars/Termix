@@ -6,7 +6,7 @@ import { Client, type ConnectConfig } from "ssh2";
 import { SSH_ALGORITHMS } from "../utils/ssh-algorithms.js";
 import { getDb } from "../database/db/index.js";
 import { hosts, sshCredentials } from "../database/db/schema.js";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { statsLogger } from "../utils/logger.js";
 import { SimpleDBOps } from "../utils/simple-db-ops.js";
 import { AuthManager } from "../utils/auth-manager.js";
@@ -481,16 +481,13 @@ class AuthFailureTracker {
       existing.count++;
       existing.lastFailure = Date.now();
       existing.reason = reason;
-      // If we've hit max retries for AUTH, make it permanent to stop fail2ban triggers
-      if (permanent || (reason === "AUTH" && existing.count >= this.maxRetries)) {
-        existing.permanent = true;
-      }
+      if (permanent) existing.permanent = true;
     } else {
       this.failures.set(hostId, {
         count: 1,
         lastFailure: Date.now(),
         reason,
-        permanent: permanent || (reason === "AUTH" && 1 >= this.maxRetries),
+        permanent,
       });
     }
   }
@@ -652,7 +649,6 @@ interface SSHHostWithCredentials {
   createdAt: string;
   updatedAt: string;
   userId: string;
-  verified: boolean;
 
   useSocks5?: boolean;
   socks5Host?: string;
@@ -900,10 +896,6 @@ class PollingManager {
       return;
     }
 
-    if (!refreshedHost.verified) {
-      return;
-    }
-
     try {
       const isOnline = await tcpPing(
         refreshedHost.ip,
@@ -931,10 +923,6 @@ class PollingManager {
     const userId = viewerUserId || host.userId;
     const refreshedHost = await fetchHostById(host.id, userId);
     if (!refreshedHost) {
-      return;
-    }
-
-    if (!refreshedHost.verified) {
       return;
     }
 
@@ -1202,10 +1190,6 @@ async function fetchAllHosts(
       try {
         const hostWithCreds = await resolveHostCredentials(host, userId);
         if (hostWithCreds) {
-          // Auto-verify if it has a fingerprint (legacy/existing hosts)
-          if (host.hostKeyFingerprint && !hostWithCreds.verified) {
-            hostWithCreds.verified = true;
-          }
           hostsWithCredentials.push(hostWithCreds);
         }
       } catch (err) {
@@ -1257,11 +1241,7 @@ async function fetchHostById(
     }
 
     const host = hostResults[0];
-    const resolved = await resolveHostCredentials(host, userId);
-    if (resolved && host.hostKeyFingerprint && !resolved.verified) {
-      resolved.verified = true;
-    }
-    return resolved;
+    return await resolveHostCredentials(host, userId);
   } catch (err) {
     statsLogger.error(`Failed to fetch host ${id}`, err);
     return undefined;
@@ -1287,7 +1267,6 @@ async function resolveHostCredentials(
             : []
           : [],
       pin: !!host.pin,
-      verified: host.verified !== undefined ? !!host.verified : true,
       authType: host.authType,
       enableTerminal: !!host.enableTerminal,
       enableTunnel: !!host.enableTunnel,

@@ -327,33 +327,21 @@ export class SSHHostKeyVerifier {
       }, 60000);
 
       const messageHandler = (data: Buffer) => {
-        const messageString = data.toString();
         try {
-          const message = JSON.parse(messageString);
+          const message = JSON.parse(data.toString());
 
           if (message.type === "host_key_verification_response") {
             clearTimeout(timeout);
             ws.removeListener("message", messageHandler);
 
             const response = message.data as VerificationResponse;
-            sshLogger.info("Host key verification response received", {
-              operation: "host_key_response",
-              action: response.action,
-              ip,
-              port,
-            });
             resolve(response.action === "accept");
           }
         } catch (error) {
-          // Ignore parse errors for messages not meant for us (e.g. raw terminal data)
-          // but log if it looks like it might have been a response
-          if (messageString.includes("host_key_verification_response")) {
-             sshLogger.error(
-              "Error parsing host key verification response JSON",
-              error,
-              { messageString }
-            );
-          }
+          sshLogger.error(
+            "Error parsing host key verification response",
+            error,
+          );
         }
       };
 
@@ -401,33 +389,21 @@ export class SSHHostKeyVerifier {
       }, 120000);
 
       const messageHandler = (data: Buffer) => {
-        const messageString = data.toString();
         try {
-          const message = JSON.parse(messageString);
+          const message = JSON.parse(data.toString());
 
           if (message.type === "host_key_verification_response") {
             clearTimeout(timeout);
             ws.removeListener("message", messageHandler);
 
             const response = message.data as VerificationResponse;
-            sshLogger.info("Host key verification response received", {
-              operation: "host_key_response",
-              action: response.action,
-              ip,
-              port,
-            });
             resolve(response.action === "accept");
           }
         } catch (error) {
-          // Ignore parse errors for messages not meant for us (e.g. raw terminal data)
-          // but log if it looks like it might have been a response
-          if (messageString.includes("host_key_verification_response")) {
-             sshLogger.error(
-              "Error parsing host key verification response JSON",
-              error,
-              { messageString }
-            );
-          }
+          sshLogger.error(
+            "Error parsing host key verification response",
+            error,
+          );
         }
       };
 

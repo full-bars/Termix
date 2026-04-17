@@ -7,7 +7,7 @@ import { parse as parseUrl } from "url";
 import axios from "axios";
 import { getDb } from "../database/db/index.js";
 import { sshCredentials, hosts } from "../database/db/schema.js";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { sshLogger, authLogger } from "../utils/logger.js";
 import { SimpleDBOps } from "../utils/simple-db-ops.js";
 import { AuthManager } from "../utils/auth-manager.js";
@@ -43,18 +43,11 @@ async function performPortKnocking(
         });
       } else {
         const socket = new net.Socket();
-        const timeout = setTimeout(() => {
-          socket.destroy();
-          resolve();
-        }, 1000);
-
         socket.once("connect", () => {
-          clearTimeout(timeout);
           socket.destroy();
           resolve();
         });
         socket.once("error", () => {
-          clearTimeout(timeout);
           socket.destroy();
           resolve();
         });
@@ -1191,10 +1184,8 @@ wss.on("connection", async (ws: WebSocket, req) => {
       key,
       keyPassword,
       keyType,
-      authType: authType || (password ? "password" : key ? "key" : "none"),
+      authType,
     };
-    let portKnockSequence = hostConfig.portKnockSequence;
-
     const authMethodNotAvailable = false;
     if (id && userId && !password && !key) {
       try {
@@ -1207,15 +1198,8 @@ wss.on("connection", async (ws: WebSocket, req) => {
             key: resolvedHost.key,
             keyPassword: resolvedHost.keyPassword,
             keyType: resolvedHost.keyType,
-            authType: resolvedHost.authType || (resolvedHost.password ? "password" : resolvedHost.key ? "key" : "none"),
+            authType: resolvedHost.authType,
           };
-          if (resolvedHost.portKnockSequence) {
-            portKnockSequence = resolvedHost.portKnockSequence as Array<{
-              port: number;
-              protocol?: "tcp" | "udp";
-              delay?: number;
-            }>;
-          }
           sendLog(
             "auth",
             "info",
@@ -1240,15 +1224,8 @@ wss.on("connection", async (ws: WebSocket, req) => {
             key: resolvedHost.key,
             keyPassword: resolvedHost.keyPassword,
             keyType: resolvedHost.keyType,
-            authType: resolvedHost.authType || (resolvedHost.password ? "password" : resolvedHost.key ? "key" : "none"),
+            authType: resolvedHost.authType,
           };
-          if (resolvedHost.portKnockSequence) {
-            portKnockSequence = resolvedHost.portKnockSequence as Array<{
-              port: number;
-              protocol?: "tcp" | "udp";
-              delay?: number;
-            }>;
-          }
         }
       } catch (error) {
         sshLogger.warn(`Failed to resolve credentials for host ${id}`, {
@@ -1260,26 +1237,8 @@ wss.on("connection", async (ws: WebSocket, req) => {
       }
     }
 
-    // Infer authType if it's still missing or set to "credential" (legacy fallback)
-    if (!resolvedCredentials.authType || resolvedCredentials.authType === "credential") {
-      resolvedCredentials.authType = resolvedCredentials.key ? "key" : resolvedCredentials.password ? "password" : "none";
-    }
-
     sshConn.on("ready", () => {
       clearTimeout(connectionTimeout);
-
-      // Mark host as verified for background polling
-      if (id) {
-        try {
-          getDb().update(hosts)
-            .set({ verified: true })
-            .where(eq(hosts.id, id))
-            .run();
-        } catch {
-          // Fallback just in case
-        }
-      }
-
       sshLogger.success("SSH connection established", {
         operation: "terminal_ssh_connected",
         sessionId,
@@ -2222,17 +2181,20 @@ wss.on("connection", async (ws: WebSocket, req) => {
       return;
     }
 
-    if (portKnockSequence && portKnockSequence.length > 0) {
+    if (
+      hostConfig.portKnockSequence &&
+      hostConfig.portKnockSequence.length > 0
+    ) {
       try {
         sshLogger.info(
-          `Port knocking ${ip} (${portKnockSequence.length} ports)`,
-          { operation: "port_knock", hostId: id },
+          `Port knocking ${hostConfig.ip} (${hostConfig.portKnockSequence.length} ports)`,
+          { operation: "port_knock", hostId: hostConfig.id },
         );
-        await performPortKnocking(ip, portKnockSequence);
+        await performPortKnocking(hostConfig.ip, hostConfig.portKnockSequence);
       } catch (err) {
         sshLogger.warn("Port knocking failed, attempting connection anyway", {
           operation: "port_knock",
-          hostId: id,
+          hostId: hostConfig.id,
         });
       }
     }

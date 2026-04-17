@@ -1,14 +1,14 @@
 services:
   termix:
-    image: ghcr.io/lukegus/termix:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: termix
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "3080:8080"
     volumes:
       - termix-data:/app/data
-    environment:
-      PORT: "8080"
     depends_on:
       - guacd
     networks:
@@ -18,8 +18,6 @@ services:
     image: guacamole/guacd:latest
     container_name: guacd
     restart: unless-stopped
-    ports:
-      - "4822:4822"
     networks:
       - termix-net
 

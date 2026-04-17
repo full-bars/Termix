@@ -132,6 +132,7 @@ export const hosts = sqliteTable("ssh_data", {
   domain: text("domain"),
   security: text("security"),
   ignoreCert: integer("ignore_cert", { mode: "boolean" }).default(false),
+  verified: integer("verified", { mode: "boolean" }).notNull().default(false),
   guacamoleConfig: text("guacamole_config"),
 
   useSocks5: integer("use_socks5", { mode: "boolean" }),

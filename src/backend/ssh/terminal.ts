@@ -1262,6 +1262,15 @@ wss.on("connection", async (ws: WebSocket, req) => {
 
     sshConn.on("ready", () => {
       clearTimeout(connectionTimeout);
+
+      // Mark host as verified for background polling
+      if (id) {
+        getDb().update(hosts)
+          .set({ verified: true })
+          .where(eq(hosts.id, id))
+          .run();
+      }
+
       sshLogger.success("SSH connection established", {
         operation: "terminal_ssh_connected",
         sessionId,
